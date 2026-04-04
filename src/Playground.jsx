@@ -2,27 +2,25 @@ import { useRef, useState ,useEffect } from 'react'
 import './Playground.css'
 
 
-class circle{
-    constructor(circleSvg,radius,pos,velocity){
-        this.circleSvg = circleSvg
-        this.position = pos
-        this.velocity = velocity
-        this.radius = radius
-        this.circleSvg.setAttribute("cx",pos.x)
-        this.circleSvg.setAttribute("cy",pos.y)
-        this.circleSvg.setAttribute("r",radius)
-        this.circleSvg.setAttribute("fill",'var(--primary)')
-        // this.circleSvg.setAttribute("fill",'red')
-    }
-}
-
-
 class vector{
 
     constructor(){
         this.x = 0
         this.y = 0
-        this.z =0
+        this.z = 0
+    }
+    constructor(x,y,z){
+        this.x = x
+        this.y = y
+        this.z = z
+    }
+    
+    add(v2){
+        return {
+            x: this.x + v2.x,
+            y: this.y + v2.y,
+            z: this.z + v2.z
+        }
     }
 
     sub(v2){
@@ -31,6 +29,51 @@ class vector{
             y: this.y - v2.y,
             z: this.z - v2.z
         }
+    }
+
+    scale(k){
+        return {
+            x: this.x*k,
+            y: this.y*k,
+            z: this.z*k
+        }
+    }
+}
+
+class RigidBody{
+    constructor(pos,vel){
+        this.position = pos
+        this.velocity = vel
+    }
+
+    supportFunc(dir){
+        throw new Error("support not implemented in child class")
+    }
+}
+
+class Circle extends RigidBody{
+    constructor(circleSvg,radius,pos,velocity){
+        super(pos,vel)
+        this.circleSvg = circleSvg
+        this.radius = radius
+        this.circleSvg.setAttribute("cx",pos.x)
+        this.circleSvg.setAttribute("cy",pos.y)
+        this.circleSvg.setAttribute("r",radius)
+        this.circleSvg.setAttribute("fill",'var(--primary)')
+        // this.circleSvg.setAttribute("fill",'red')
+    }
+
+    supportFunc(dir){
+        dir = dir.unitize()
+        dir.scale(this.radius)
+        return dir.add(this.position)
+    }
+}
+
+class Square extends RigidBody{
+    constructor(pos,vel,side){
+        super(pos,vel)
+        this.side = side
     }
 }
 
@@ -131,18 +174,22 @@ function updateSimplex(simplex,dir){
     }
 }
 
+function findSupportPoint(s1,s2,dir){
+    return s1.supportFunc(dir)-s2.supportFunc(dir.scale(-1))
+}
+
 function GJK(s1,s2){
-    const randDir = {x:0,y:1,z:0}
-    supportPoint = findSupportPoint(s1,s2,randDir)
+    const randDir = new vector(0,1,0)
+    const supportPoint = findSupportPoint(s1,s2,randDir)
     const simplex =[]
     simplex.push(supportPoint)
     let dir = ORIGIN.sub(supportPoint)
 
     while(true){
         supportPoint = findSupportPoint(s1,s2,dir)
-        if(supportPoint.dot(dir)<=0) return false
+        if(supportPoint.dot(dir)<=0) return {simplex:simplex,hasCollided:false}
         simplex.push(supportPoint)
-        if(updateSimplex(simplex,d)) return true
+        if(updateSimplex(simplex,d)) return {simplex:simplex,hasCollided:true}
     }
 }
 
@@ -150,7 +197,76 @@ function getRandom(a,b){
     return Math.random()*(b-a)+a
 }
 
-function collide(environment){
+function EPA(simplex,s1,s2){
+    const polytope = simplex
+    const faces = [
+        0,1,2,
+        0,3,1,
+        0,2,3,
+        1,2,3
+    ]
+
+    const [normals,minFaceInd] = getFaceNormals(polytope,faces)
+
+    const minNormal = new vector()
+    const minDistance = Infinity
+
+    while(minDistance===Infinity){
+        minNormal = normals[minFaceInd].xyz()
+        minDistance = normals[minFaceInd].w()
+
+        const supportPoint = findSupportPoint(s1,s2,minNormal)
+        const sDistance = dot(minNormal,supportPoint)
+
+        if(Math.abs(sDistance-minDistance)> 0.001){
+            minDistance = Infinity
+            const uniqueEdges = []
+            for (let i = 0; i < normals.length; i++) {
+                if(sameDirection(normals,supportPoint)){
+                    const f = i*3
+                    addIfUniqueEdges(uniqueEdges,faces,f,f+1)
+                    addIfUniqueEdges(uniqueEdges,faces,f+1,f+2)
+                    addIfUniqueEdges(uniqueEdges,faces,f+2,f)
+
+                    faces[f+2] = faces.at(-1)
+                    faces.pop()
+                    faces[f+1] = faces.at(-1)
+                    faces.pop()
+                    faces[f] = faces.at(-1)
+                    faces.pop()
+
+                    normals[i] = normals.at(-1)
+                    normals.pop()
+
+                    i--
+                }
+            }
+
+            const newFaces = []
+            for(const [edgeInd1,edgeInd2] of uniqueEdges){
+                newFaces.push(edgeInd1)
+                newFaces.push(edgeInd2)
+                newFaces.push(polytope.length)
+            }
+            polytope.push(supportPoint)
+
+            const [newNormals,newMinFace] = getFaceNormals(polytope,newFaces)
+
+            let oldMinDist = Infinity
+            for (let i = 0; i < normals.length; i++) {
+                if(normals[i].w < oldMinDist){
+                    oldMinDist = normals[i].w
+                    minFaceInd = i
+                }
+            }
+            if(newNormals[newMinFace].w < oldMinDist){
+                minFaceInd = newMinFace + normals.length
+            }
+            faces.push(...newFaces)
+            normals.push(...newNormals)
+        }
+    }
+    return minNormal.scale(minDistance+0.001)
 
 }
 
@@ -159,23 +275,37 @@ function createCircles(n){
     for (let i = 0; i < n; i++) {
         const circleSvg = document.createElementNS("http://www.w3.org/2000/svg","circle")
         const radius = getRandom(10,50)
-        const pos = {x:getRandom(0,1000),y:getRandom(0,1000)}
-        const vel = {x: getRandom(-5,5),y:getRandom(-5,5)}
-        const circleOb = new circle(circleSvg,radius,pos,vel);
-        arr.push(circleOb)
+        const pos = new vector(getRandom(0,1000),getRandom(0,1000),0)
+        const vel = new vector(getRandom(-5,5),getRandom(-5,5),getRandom(-5,5),0)
+        const circle = new Circle(circleSvg,radius,pos,vel);
+        arr.push(circle)
     }
     return arr
 }
+
+
+
+
 function Playground() {
 
     const [n,setN] = useState(30)
 
-    const [environment, setEnvironment] = useState([])
     const [frameNo, setFrameNo] = useState(0)
     const [t1,setT1] = useState(-1);
     const [t2,setT2] = useState(0);
-
+    
     const circlesRef = useRef(createCircles(n))
+    const environmentRef= useRef((()=>{
+        const circles = circlesRef.current
+        const zeroPos =  new vector(0,0,0)
+        const zeroVel =  new vector(0,0,0)
+        const sqSide = 1000
+        return [
+            circles,
+            new Square(zeroPos,zeroVel,sqSide)
+        ]
+    })())
+
     const svgRef = useRef();
 
     useEffect(() => {
@@ -193,6 +323,15 @@ function Playground() {
                 const pos = cO.position
                 const r = cO.radius
                 const dt = t2 - t1
+                for(const objects of environmentRef.current){
+                    for(const otherObjects of environmentRef.current){
+                        if(objects===otherObjects) continue
+                        const gjkResult = GJK(objects,otherObjects)
+                        if(!gjkResult.hasCollided) continue
+                        const epaResult = EPA(gjkResult.simplex,objects,otherObjects)
+
+                    }
+                }
                 if((pos.y<=r && vel.y<0) || (1000-pos.y<=r && vel.y>0)){
                     vel.y*=-1
                 }
