@@ -62,9 +62,16 @@ class vector{
 const ORIGIN = new vector(0,0,0)
 
 class RigidBody{
-    constructor(pos,vel){
+    constructor(pos,vel,mass){
         this.position = pos
         this.velocity = vel
+        this.mass = mass
+        if(this.mass===0){
+            this.invMass = 0;
+        }
+        else{
+            this.invMass = 1/this.mass;
+        }
     }
 
     supportFunc(dir){
@@ -73,8 +80,8 @@ class RigidBody{
 }
 
 class Circle extends RigidBody{
-    constructor(circleSvg,radius,pos,vel){
-        super(pos,vel)
+    constructor(circleSvg,radius,pos,vel,mass){
+        super(pos,vel,mass)
         this.circleSvg = circleSvg
         this.radius = radius
         this.circleSvg.setAttribute("cx",pos.x)
@@ -97,8 +104,8 @@ class Circle extends RigidBody{
 }
 
 class Square extends RigidBody{
-    constructor(sqSvg,pos,vel,side){
-        super(pos,vel)
+    constructor(sqSvg,pos,vel,side,mass){
+        super(pos,vel,mass)
         this.side = side
         this.squareSvg = sqSvg
         this.squareSvg.setAttribute("x",pos.x)
@@ -110,10 +117,12 @@ class Square extends RigidBody{
     }
 
     supportFunc(dir){
-        let x = dir.x>=0?this.side/2:-this.side/2
-        let y = dir.y>=0?this.side/2:-this.side/2
-        x+=this.position.x
-        y+=this.position.y
+        let x = dir.x>=0?
+            this.position.x+this.side
+            :this.position.x
+        let y = dir.y>=0?
+            this.position.y+this.side
+            :this.position.y
         return new vector(x,y,0)
     }
 
@@ -267,7 +276,6 @@ function updateSimplex(simplex,dir){
 }
 
 function findSupportPoint(s1,s2,dir){
-    
     return s1.supportFunc(dir).sub(s2.supportFunc(dir.scale(-1)))
 }
 
@@ -404,10 +412,11 @@ function EPA3D(polytope,s1,s2){
 }   
 
 function EPA2D(polytope,s1,s2){
-    let minIndex = 0
-    let minDistance = Infinity
-    let minNormal;
+    console.log([...polytope])
     while(true){
+        let minIndex = 0
+        let minDistance = Infinity
+        let minNormal;
         for (let i = 0; i < polytope.length; i++) {
             let j = (i+1)%polytope.length
 
@@ -415,10 +424,14 @@ function EPA2D(polytope,s1,s2){
             let vertexJ = polytope[j]
 
             let ij = vertexJ.sub(vertexI)
+            // console.log(vertexJ)
+            // console.log(ij)
             let normal = cross(ij,new vector(0,0,1)).unitize()
+            // console.log(normal)
+            // console.log(minNormal)
             
             if(dot(vertexI,normal)<0){
-                normal.scale(-1)
+                normal = normal.scale(-1)
             }
             let distance = dot(vertexI,normal)
             if(distance<minDistance){
@@ -427,10 +440,15 @@ function EPA2D(polytope,s1,s2){
                 minNormal = normal
             }
         }
+        // console.log(minNormal)
         let supportpoint = findSupportPoint(s1,s2,minNormal)
         let sDistance = dot(minNormal,supportpoint)
 
-        if(Math.abs(sDistance - minDistance) < 0.0001) return minNormal.scale(minDistance+0.0001)
+        // console.log(minDistance)
+        if(Math.abs(sDistance - minDistance) < 0.0001){
+            // console.log(minNormal.scale(minDistance))
+            return minNormal.scale(minDistance+0.001)
+        }
         polytope.splice(minIndex,0,supportpoint)
         minDistance = Infinity
     }
@@ -443,6 +461,7 @@ function EPA1D(simplex,s1,s2){
 }
 
 function EPA(simplex,s1,s2){
+    console.log(simplex)
     switch (simplex.length) {
         case 2: return EPA1D(simplex,s1,s2)
         case 3: return EPA2D(simplex,s1,s2)
@@ -462,37 +481,57 @@ function createCircles(n){
     //     arr.push(circle)
     // }
     
-    let circleSvg = document.createElementNS("http://www.w3.org/2000/svg","circle")
-    let radius = getRandom(10,10)
-    let pos = new vector(20,20,0)
-    let vel = new vector(1,0,0)
-    let circle = new Circle(circleSvg,radius,pos,vel)
-    arr.push(circle)
+    for (let i = 0; i < n; i++) {
+        let circleSvg = document.createElementNS("http://www.w3.org/2000/svg", "circle")
 
-    let circleSvg1 = document.createElementNS("http://www.w3.org/2000/svg","circle")
-    let radius1 = getRandom(10,10)
-    let pos1 = new vector(30,20,0)
-    let vel1 = new vector(-1,0,0)
-    let circle1 = new Circle(circleSvg1,radius1,pos1,vel1)
-    arr.push(circle1)
+        let radius = getRandom(10, 50);
+        let pos = new vector(getRandom(-0, 1000),getRandom(0, 1000),0)
+        let vel = new vector(getRandom(-5, 5),getRandom(-5, 5),0)
+        let mass = radius*radius
+        let circle = new Circle(circleSvg, radius, pos, vel, mass)
+        arr.push(circle);
+    }
 
+    let circleSvg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+    let radius = 50;
+    let pos = new vector(500, 500, 0);
+    let vel = new vector(0, 0, 0); 
+    let mass = 0;
+
+    let circle = new Circle(circleSvg, radius, pos, vel, mass);
+
+    arr.push(circle);
+    console.log([...arr])
     return arr
 }
 
 function resolveCollision(p,s1,s2){
     let s1Tos2 = s2.position.sub(s1.position)
-    if(sameDirection(p,s1Tos2)) p = p.scale(-1)
-    s1.position =s1.position.add(p.scale(0.5))
-    s2.position =s2.position.add(p.scale(-0.5))
-
+    if(!sameDirection(p,s1Tos2)) p = p.scale(-1)
     let normal = p.unitize()
     let relVelocity = s2.velocity.sub(s1.velocity)
-    let speedAlongNormal = dot(relVelocity,normal)
-    if(speedAlongNormal<0) return
-    let velAlongNormal = normal.scale(speedAlongNormal)
+    let totInvMass = s1.invMass + s2.invMass
+    if(totInvMass===0) return
 
-    s1.velocity = s1.velocity.add(velAlongNormal)
-    s2.velocity = s2.velocity.sub(velAlongNormal)
+    s1.position =s1.position.sub(p.scale(s1.invMass/totInvMass))
+    s2.position =s2.position.add(p.scale(s2.invMass/totInvMass))
+
+
+    let speedAlongNormal = dot(relVelocity,normal)
+
+    if(speedAlongNormal > 0) return
+
+    let e = 0.8
+    let j = -(1+e)* speedAlongNormal
+    j = j/totInvMass
+
+    let impulse = normal.scale(j)
+
+    if(s1.invMass!==0) s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass))
+    if(s2.invMass!==0) s2.velocity = s2.velocity.add(impulse.scale(s2.invMass))
+    console.log(s1.velocity)
+    console.log(s2.velocity)
     s1.update()
     s2.update()
 }
@@ -509,16 +548,16 @@ function createBoundry(){
     let rect8 = document.createElementNS("http://www.w3.org/2000/svg","rect")
 
     let vel = new vector(0,0,0)
-    arr.push(new Square(rect1, new vector(-1000 , -1000 , 0), vel, 1000))
-    arr.push(new Square(rect2, new vector(0     , -1000 , 0), vel, 1000))
-    arr.push(new Square(rect3, new vector(1000  , -1000 , 0), vel, 1000))
+    arr.push(new Square(rect1, new vector(-1000 , -1000 , 0), vel, 1000,0))
+    arr.push(new Square(rect2, new vector(0     , -1000 , 0), vel, 1000,0))
+    arr.push(new Square(rect3, new vector(1000  , -1000 , 0), vel, 1000,0))
 
-    arr.push(new Square(rect4, new vector(-1000 , 0      , 0), vel, 1000))
-    arr.push(new Square(rect5, new vector(1000  , 0      , 0), vel, 1000))
+    arr.push(new Square(rect4, new vector(-1000 , 0      , 0), vel, 1000,0))
+    arr.push(new Square(rect5, new vector(1000  , 0      , 0), vel, 1000,0))
 
-    arr.push(new Square(rect6, new vector(-1000 , 1000   , 0), vel, 1000))
-    arr.push(new Square(rect7, new vector(0     , 1000   , 0), vel, 1000))
-    arr.push(new Square(rect8, new vector(1000  , 1000   , 0), vel, 1000))
+    arr.push(new Square(rect6, new vector(-1000 , 1000   , 0), vel, 1000,0))
+    arr.push(new Square(rect7, new vector(0     , 1000   , 0), vel, 1000,0))
+    arr.push(new Square(rect8, new vector(1000  , 1000   , 0), vel, 1000,0))
     return arr
 }
 
@@ -531,14 +570,10 @@ function move(circles){
     })
 }
 
-function detectAndResolve(environment){
-    
-}
-
 
 function Playground() {
 
-    const [n,setN] = useState(2)
+    const [n,setN] = useState(10)
 
     const [frameNo, setFrameNo] = useState(0)
     const [t1,setT1] = useState(-1);
@@ -546,9 +581,9 @@ function Playground() {
     
     const circlesRef = useRef(createCircles(n))
     const boundryRef = useRef(createBoundry(n))
-
+    
     const [isBoundry, setisBoundry] = useState(new Set([...boundryRef.current]))
-
+    
     const environmentRef= useRef((()=>{
         const circles = circlesRef.current
         const boundry = boundryRef.current
@@ -563,76 +598,31 @@ function Playground() {
     useEffect(() => {
         const circles = circlesRef.current
         const boundry = boundryRef.current
-        // console.log(boundry)
         boundry.map(b=>svgRef.current.appendChild(b.squareSvg))
         circles.map(c=>svgRef.current.appendChild(c.circleSvg))
-        // console.log([...circles])
     }, [])
 
     useEffect(() => {
         let frameId;
         function animate() {
-            const circles = circlesRef.current
-            circles.map((cO)=>{
-                const circle = cO.circleSvg
-                const vel = cO.velocity
-                const pos = cO.position
-                const r = cO.radius
-                const dt = t2 - t1
-                for(const objects of environmentRef.current){
-                    for(const otherObjects of environmentRef.current){
-                        if(objects===otherObjects) continue
-                        // console.log(objects,otherObjects)
-                        const gjkResult = GJK(objects,otherObjects)
-                        console.log(gjkResult)
-                        if(!gjkResult.hasCollided) continue
-                        const epaResult = EPA(gjkResult.simplex,objects,otherObjects)
-                        // console.log(objects,otherObjects)
-                        resolveCollision(objects,otherObjects,epaResult)
-
-                        s1.update(p,s2)
-                        s2.update(p,s1)
-                    }
-                }
-                // if((pos.y<=r && vel.y<0) || (1000-pos.y<=r && vel.y>0)){
-                //     vel.y*=-1
-                // }
-                // if((pos.x<=r && vel.x<0) || (1000-pos.x<=r && vel.x>0)){
-                //     vel.x*=-1
-                // }
-                // pos.x += vel.x*dt
-                // pos.y += vel.y*dt
-                // circle.setAttribute("cx",pos.x)
-                // circle.setAttribute("cy",pos.y)
-            })
-            setT1(t2)
-            setT2(t2=> t2+=1/60)
-            setFrameNo(f=>{
-                if(f>=2) return f;
-                // frameId = requestAnimationFrame(animate)
-                return f+1;
-            })
+            
         }
 
         // frameId = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(frameId);
     }, []);
 
+    let frameId;
     function animate() {
         const circles = circlesRef.current
         const environment = environmentRef.current
+
         move(circles)
-        console.log([...boundryRef.current])
-        console.log([...isBoundry])
         for (let i = 0; i < environment.length; i++) {
             for (let j = i+1; j < environment.length; j++) {
-                console.log(environment[i],environment[j])
-                console.log("GJK ",GJK(environment[i],environment[j]))
                 if(isBoundry.has(environment[i]) && isBoundry.has(environment[j])) continue
                 const gjkResult = GJK(environment[i],environment[j])
                 if(!gjkResult.hasCollided) continue
-                console.log(environment[i],"=",environment[j])
-                console.log(gjkResult)
                 const epaResult = EPA(gjkResult.simplex,environment[i],environment[j])
                 console.log(epaResult)
                 resolveCollision(epaResult,environment[i],environment[j])
@@ -640,9 +630,16 @@ function Playground() {
             }
         }
         console.log("\n")
+        setFrameNo(f=>{
+                if(f>=1000) return f;
+                frameId = requestAnimationFrame(animate)
+                return f+1;
+        })
     }
 
+
     const nextFrame = ()=>{
+        const circles = circlesRef.current
         requestAnimationFrame(animate);
     }
 
