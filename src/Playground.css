@@ -1,15 +1,15 @@
-.playground{
-    flex: 1;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.playground {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.boundingBox{
-    width: 100%;
-    height: 100%;
+.boundingBox {
+  width: 100%;
+  height: 100%;
 
-    aspect-ratio: 1/1;
+  aspect-ratio: 1/1;
 }
