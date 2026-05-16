@@ -9,6 +9,8 @@ import { GJK } from "./physics/collisionDetection/GJK";
 import { findSupportPoint } from "./physics/support";
 import { EPA } from "./physics/collisionResolution/EPA";
 import { getRandom } from "./utils/maths/utility";
+import { quaternion } from "./utils/maths/quaternion";
+import { Matrix } from "./utils/maths/matrix";
 
 function resolveCollision(p, s1, s2) {
   let s1Tos2 = s2.position.sub(s1.position);
@@ -55,14 +57,25 @@ function handleCollision(environment) {
 
 function move(circles, squares) {
   circles.map((c) => {
-    const dt = 1;
+    const dt = 1/60;
     c.position.x += c.velocity.x * dt;
     c.position.y += c.velocity.y * dt;
     c.update();
   });
-  console.log(squares);
+
   squares.map((s) => {
-    const dt = 1;
+    const dt = 1/60;
+
+    let L = s.angMom;
+    let invI = s.invInertia;
+    let R = s.orientation.toRotMat();
+    let omegaVec = R.multVec(invI.multVec(R.transpose().multVec(L)))
+    let omega = new quaternion(0,omegaVec.x,omegaVec.y,omegaVec.z)
+    let q = s.orientation;
+    s.orientation = q.add(q.mult(omega).scale(0.5*dt)).unitize();
+    console.log(s.orientation);
+    // console.log(s.orientation.magnitude());
+
     s.position.x += s.velocity.x * dt;
     s.position.y += s.velocity.y * dt;
     s.update();
@@ -72,33 +85,33 @@ function move(circles, squares) {
 function createCircles(n) {
   const arr = [];
 
-  for (let i = 0; i < n; i++) {
-    let circleSvg = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle",
-    );
+  // for (let i = 0; i < n; i++) {
+  //   let circleSvg = document.createElementNS(
+  //     "http://www.w3.org/2000/svg",
+  //     "circle",
+  //   );
 
-    let radius = getRandom(10, 50);
-    let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
-    let vel = new Vector(getRandom(-5, 5), getRandom(-5, 5), 0);
-    let mass = radius * radius;
-    let circle = new Circle(circleSvg, radius, pos, vel, mass);
-    arr.push(circle);
-  }
+  //   let radius = getRandom(10, 50);
+  //   let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
+  //   let vel = new Vector(getRandom(-5, 5), getRandom(-5, 5), 0);
+  //   let mass = radius * radius;
+  //   let circle = new Circle(circleSvg, radius, pos, vel, mass);
+  //   arr.push(circle);
+  // }
 
-  let circleSvg = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "circle",
-  );
+  // let circleSvg = document.createElementNS(
+  //   "http://www.w3.org/2000/svg",
+  //   "circle",
+  // );
 
-  let radius = 50;
-  let pos = new Vector(500, 500, 0);
-  let vel = new Vector(0, 0, 0);
-  let mass = 0;
+  // let radius = 50;
+  // let pos = new Vector(500, 500, 0);
+  // let vel = new Vector(0, 0, 0);
+  // let mass = 0;
 
-  let circle = new Circle(circleSvg, radius, pos, vel, mass);
+  // let circle = new Circle(circleSvg, radius, pos, vel, mass);
 
-  arr.push(circle);
+  // arr.push(circle);
   return arr;
 }
 
@@ -107,13 +120,36 @@ function createSquares(n) {
   for (let i = 0; i < n; i++) {
     let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
-    let side = getRandom(10, 50);
-    let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
-    let vel = new Vector(getRandom(-10, 10), getRandom(-10, 10), 0);
+    let side = getRandom(100, 100);
+    // let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
+    let pos = new Vector(575,450, 0);
+    // let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
+    let vel = new Vector(0, 100, 0);
     let mass = side * side;
-    let square = new Square(sqsvg, pos, vel, side, mass);
+    let orientation = new quaternion(1,0,0,0);
+    let mss = mass*side*side;
+    let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
+    let omega = new Vector(0,0,0);
+    let angMom = inertia.multVec(omega);
+    let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angMom);
     arr.push(square);
   }
+  let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  let side = getRandom(100, 100);
+  let pos = new Vector(450, 450, 0);
+  let vel = new Vector(0, 100, 0);
+  let mass = side * side;
+  let orientation = new quaternion(1,0,0,0);
+  let mss = mass*side*side;
+  let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
+  let omega = new Vector(0,0,2*Math.PI/10);
+  let angMom = inertia.multVec(omega);
+  
+  // console.log(angMom)
+  // console.log(angMom.magnitude())
+  let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angMom);
+  arr.push(square);
+  
   return arr;
 }
 
@@ -129,16 +165,19 @@ function createBoundry() {
   let rect8 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
   let vel = new Vector(0, 0, 0);
-  arr.push(new Square(rect1, new Vector(-1000, -1000, 0), vel, 1000, 0));
-  arr.push(new Square(rect2, new Vector(0, -1000, 0), vel, 1000, 0));
-  arr.push(new Square(rect3, new Vector(1000, -1000, 0), vel, 1000, 0));
+  let orientation = new quaternion(1,0,0,0);
+  let inertia = new Matrix([0,0,0],[0,0,0],[0,0,0]);
+  let angMom = new Vector(0,0,0);
+  arr.push(new Square(rect1, new Vector(-1000, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect2, new Vector(0, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect3, new Vector(1000, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
 
-  arr.push(new Square(rect4, new Vector(-1000, 0, 0), vel, 1000, 0));
-  arr.push(new Square(rect5, new Vector(1000, 0, 0), vel, 1000, 0));
+  arr.push(new Square(rect4, new Vector(-1000, 0, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect5, new Vector(1000, 0, 0), vel, 1000, 0,orientation,inertia,angMom));
 
-  arr.push(new Square(rect6, new Vector(-1000, 1000, 0), vel, 1000, 0));
-  arr.push(new Square(rect7, new Vector(0, 1000, 0), vel, 1000, 0));
-  arr.push(new Square(rect8, new Vector(1000, 1000, 0), vel, 1000, 0));
+  arr.push(new Square(rect6, new Vector(-1000, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect7, new Vector(0, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect8, new Vector(1000, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
   return arr;
 }
 
@@ -150,7 +189,7 @@ function createEnvironment(circlesRef, boundryRef, squareRef) {
 }
 
 function Playground() {
-  const [n, setN] = useState(10);
+  const [n, setN] = useState(1);
 
   const [frameNo, setFrameNo] = useState(0);
   const [t1, setT1] = useState(-1);
@@ -175,7 +214,6 @@ function Playground() {
     boundry.map((b) => svgRef.current.appendChild(b.squareSvg));
     circles.map((c) => svgRef.current.appendChild(c.circleSvg));
     squares.map((s) => svgRef.current.appendChild(s.squareSvg));
-    console.log(squares);
   }, []);
 
   useEffect(() => {
