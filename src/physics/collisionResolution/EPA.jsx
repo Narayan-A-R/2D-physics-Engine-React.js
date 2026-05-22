@@ -24,8 +24,7 @@ function getFaceNormals(polytope, faces) {
     const c = polytope[faces[i + 2]];
     let normal = cross(b.sub(a), c.sub(a)).unitize();
     const distance = dot(normal, a);
-    console.log(normal);
-    console.log(a);
+
     if (distance < 0) {
       normal.scale(-1);
       distance *= -1;
@@ -107,7 +106,6 @@ function EPA3D(polytope, s1, s2) {
 }
 
 function EPA2D(polytope, s1, s2) {
-//   console.log([...polytope]);
   while (true) {
     let minIndex = 0;
     let minDistance = Infinity;
@@ -115,15 +113,12 @@ function EPA2D(polytope, s1, s2) {
     for (let i = 0; i < polytope.length; i++) {
       let j = (i + 1) % polytope.length;
 
-      let vertexI = polytope[i];
-      let vertexJ = polytope[j];
+      let vertexI = polytope[i].minkowskiDIff;
+      let vertexJ = polytope[j].minkowskiDIff;
 
       let ij = vertexJ.sub(vertexI);
-      // console.log(vertexJ)
-      // console.log(ij)
+
       let normal = cross(ij, new Vector(0, 0, 1)).unitize();
-      // console.log(normal)
-      // console.log(minNormal)
 
       if (dot(vertexI, normal) < 0) {
         normal = normal.scale(-1);
@@ -135,14 +130,32 @@ function EPA2D(polytope, s1, s2) {
         minNormal = normal;
       }
     }
-    // console.log(minNormal)
     let supportpoint = findSupportPoint(s1, s2, minNormal);
-    let sDistance = dot(minNormal, supportpoint);
+    let sDistance = dot(minNormal, supportpoint.minkowskiDIff);
 
-    // console.log(minDistance)
-    if (Math.abs(sDistance - minDistance) < 0.0001) {
-      // console.log(minNormal.scale(minDistance))
-      return minNormal.scale(minDistance + 0.001);
+    if (Math.abs(sDistance - minDistance) < 0.000000000000001) {
+      const prevIndex = minIndex === 0 ? polytope.length - 1 : minIndex - 1;
+
+      const v0 = polytope[prevIndex];
+      const v1 = polytope[minIndex];
+      const edge = v1.minkowskiDIff.sub(v0.minkowskiDIff);
+
+      let t = -dot(v0.minkowskiDIff, edge) / dot(edge, edge);
+      t = Math.max(0, Math.min(1, t));
+      const w0 = 1 - t;
+      const w1 = t;
+
+      const contactA = v0.supp1.scale(w0).add(v1.supp1.scale(w1));
+      const contactB = v0.supp2.scale(w0).add(v1.supp2.scale(w1));
+      const contactPoint = contactA.add(contactB).scale(0.5);
+      
+      // console.log(contactPoint)
+      const penetrationVec = minNormal.scale(minDistance)
+      // console.log(supportpoint)
+      return {
+        penetrationVec:penetrationVec,
+        contactPoint:contactPoint
+      };
     }
     polytope.splice(minIndex, 0, supportpoint);
     minDistance = Infinity;

@@ -12,20 +12,28 @@ import { getRandom } from "./utils/maths/utility";
 import { quaternion } from "./utils/maths/quaternion";
 import { Matrix } from "./utils/maths/matrix";
 
-function resolveCollision(p, s1, s2) {
+function resolveCollision(epaResult, s1, s2) {
+  let {penetrationVec:p,contactPoint} = epaResult
+
   let s1Tos2 = s2.position.sub(s1.position);
   if (!sameDirection(p, s1Tos2)) p = p.scale(-1);
-  let normal = p.unitize();
-  let relVelocity = s2.velocity.sub(s1.velocity);
   let totInvMass = s1.invMass + s2.invMass;
   if (totInvMass === 0) return;
+
+  let normal = p.unitize();
+  let relVelocity = s2.velocity.sub(s1.velocity);
+  let speedAlongNormal = dot(relVelocity, normal);
+  if (speedAlongNormal > 0) return;
 
   s1.position = s1.position.sub(p.scale(s1.invMass / totInvMass));
   s2.position = s2.position.add(p.scale(s2.invMass / totInvMass));
 
-  let speedAlongNormal = dot(relVelocity, normal);
+  let centerA = s1.position.add(new Vector(s1.side/2, s1.side/2, 0));
+  let centerB = s2.position.add(new Vector(s2.side/2, s2.side/2, 0));
 
-  if (speedAlongNormal > 0) return;
+  let contactA = contactPoint.sub(centerA);
+  let contactB = contactPoint.sub(centerB);
+
 
   let e = 0.8;
   let j = -(1 + e) * speedAlongNormal;
@@ -33,10 +41,31 @@ function resolveCollision(p, s1, s2) {
 
   let impulse = normal.scale(j);
 
-  if (s1.invMass !== 0)
+  let I1_body = s1.inertia;
+  let R1 = s1.orientation.toRotMat();
+  let I1_world = R1.mult(I1_body.mult(R1.transpose()));
+  let I1_world_inv = I1_world.inv(); 
+
+  let I2_body = s2.inertia;
+  let R2 = s2.orientation.toRotMat();
+  let I2_world = R2.mult(I2_body.mult(R2.transpose()));
+  let I2_world_inv = I2_world.inv();
+
+  let rotMass = dot(
+    I1_world_inv.multVec(cross(cross(contactA,normal),contactA)).add(
+    I2_world_inv.multVec(cross(cross(contactB,normal),contactB)))
+    ,normal)
+
+  let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
+
+  if (s1.invMass !== 0){
     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
-  if (s2.invMass !== 0)
+    s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(contactA,normal)).scale(jr))
+  }
+  if (s2.invMass !== 0){
     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
+    s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(contactB,normal)).scale(jr)) 
+  }
 
   s1.update();
   s2.update();
@@ -66,16 +95,8 @@ function move(circles, squares) {
   squares.map((s) => {
     const dt = 1/60;
 
-    let L = s.angMom;
-    let invI = s.invInertia;
-    let R = s.orientation.toRotMat();
-    let omegaVec = R.multVec(invI.multVec(R.transpose().multVec(L)))
-    let omega = new quaternion(0,omegaVec.x,omegaVec.y,omegaVec.z)
-    let q = s.orientation;
-    s.orientation = q.add(q.mult(omega).scale(0.5*dt)).unitize();
-    console.log(s.orientation);
-    // console.log(s.orientation.magnitude());
-
+    let omega = new quaternion(0,s.angVel.x,s.angVel.y,s.angVel.z)
+    s.orientation = s.orientation.add(s.orientation.mult(omega).scale(0.5*dt)).unitize();
     s.position.x += s.velocity.x * dt;
     s.position.y += s.velocity.y * dt;
     s.update();
@@ -130,8 +151,9 @@ function createSquares(n) {
     let mss = mass*side*side;
     let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
     let omega = new Vector(0,0,0);
-    let angMom = inertia.multVec(omega);
-    let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angMom);
+    // let angMom = inertia.multVec(omega);
+    let angVel = omega;
+    let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
     arr.push(square);
   }
   let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -143,12 +165,14 @@ function createSquares(n) {
   let mss = mass*side*side;
   let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
   let omega = new Vector(0,0,2*Math.PI/10);
-  let angMom = inertia.multVec(omega);
+  // let omega = new Vector(0,0,0);
+  // let angMom = inertia.multVec(omega);
   
+  let angVel = omega;
   // console.log(angMom)
   // console.log(angMom.magnitude())
-  let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angMom);
-  arr.push(square);
+  let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
+  // arr.push(square);
   
   return arr;
 }
@@ -166,18 +190,18 @@ function createBoundry() {
 
   let vel = new Vector(0, 0, 0);
   let orientation = new quaternion(1,0,0,0);
-  let inertia = new Matrix([0,0,0],[0,0,0],[0,0,0]);
-  let angMom = new Vector(0,0,0);
-  arr.push(new Square(rect1, new Vector(-1000, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
-  arr.push(new Square(rect2, new Vector(0, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
-  arr.push(new Square(rect3, new Vector(1000, -1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  let inertia = new Matrix([[0,0,0],[0,0,0],[0,0,0]]);
+  let angVel = new Vector(0,0,0);
+  arr.push(new Square(rect1, new Vector(-1000, -1000, 0), vel, 1000, 0,orientation,inertia,angVel));
+  arr.push(new Square(rect2, new Vector(0, -1000, 0), vel, 1000, 0,orientation,inertia,angVel));
+  arr.push(new Square(rect3, new Vector(1000, -1000, 0), vel, 1000, 0,orientation,inertia,angVel));
 
-  arr.push(new Square(rect4, new Vector(-1000, 0, 0), vel, 1000, 0,orientation,inertia,angMom));
-  arr.push(new Square(rect5, new Vector(1000, 0, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect4, new Vector(-1000, 0, 0), vel, 1000, 0,orientation,inertia,angVel));
+  arr.push(new Square(rect5, new Vector(1000, 0, 0), vel, 1000, 0,orientation,inertia,angVel));
 
-  arr.push(new Square(rect6, new Vector(-1000, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
-  arr.push(new Square(rect7, new Vector(0, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
-  arr.push(new Square(rect8, new Vector(1000, 1000, 0), vel, 1000, 0,orientation,inertia,angMom));
+  arr.push(new Square(rect6, new Vector(-1000, 1000, 0), vel, 1000, 0,orientation,inertia,angVel));
+  arr.push(new Square(rect7, new Vector(0, 1000, 0), vel, 1000, 0,orientation,inertia,angVel));
+  arr.push(new Square(rect8, new Vector(1000, 1000, 0), vel, 1000, 0,orientation,inertia,angVel));
   return arr;
 }
 
@@ -235,7 +259,7 @@ function Playground() {
     move(circles, squares);
 
     setFrameNo((f) => {
-      if (f >= 1000) return f;
+      if (f >= 300) return f;
       frameId = requestAnimationFrame(animate);
       return f + 1;
     });
@@ -247,9 +271,12 @@ function Playground() {
     requestAnimationFrame(animate);
   };
 
+
+
   return (
     <div className="playground">
       <button onClick={nextFrame}>Next Frame</button>
+      <button onClick={nextFrame}>Stop</button>
       <svg viewBox="0 0 1000 1000" className="boundingBox" ref={svgRef}>
         {/* <rect x={0} y={0} height={1000} width={1000} fill='white'></rect> */}
       </svg>

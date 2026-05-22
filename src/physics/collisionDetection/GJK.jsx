@@ -25,8 +25,8 @@ function getNormal(v1, v2) {
 }
 
 function lineCase(simplex, dir) {
-  const b = simplex[0];
-  const a = simplex[1];
+  const b = simplex[0].minkowskiDIff;
+  const a = simplex[1].minkowskiDIff;
   const ao = ORIGIN.sub(a);
   const ab = b.sub(a);
   const ab_perp = getNormal(ab, ao);
@@ -39,9 +39,13 @@ function lineCase(simplex, dir) {
 }
 
 function triangleCase(simplex, dir) {
-  const c = simplex[0];
-  const b = simplex[1];
-  const a = simplex[2];
+  const c_full = simplex[0];
+  const b_full = simplex[1];
+  const a_full = simplex[2];
+
+  const c = simplex[0].minkowskiDIff;
+  const b = simplex[1].minkowskiDIff;
+  const a = simplex[2].minkowskiDIff;
 
   const ab = b.sub(a);
   const ac = c.sub(a);
@@ -74,16 +78,21 @@ function triangleCase(simplex, dir) {
     return false;
   }
 
-  simplex = [a, c, b];
+  simplex = [a_full, c_full, b_full];
   dir.copy(abc_perp.scale(-1));
   return false;
 }
 
 function tetrahedronCase(simplex, dir) {
-  const d = simplex[0];
-  const c = simplex[1];
-  const b = simplex[2];
-  const a = simplex[3];
+  const d_full = simplex[0];
+  const c_full = simplex[1];
+  const b_full = simplex[2];
+  const a_full = simplex[3];
+
+  const d = simplex[0].minkowskiDIff;
+  const c = simplex[1].minkowskiDIff;
+  const b = simplex[2].minkowskiDIff;
+  const a = simplex[3].minkowskiDIff;
 
   const ad = d.sub(a);
   const ab = b.sub(a);
@@ -132,13 +141,13 @@ export function GJK(s1, s2) {
   const randDir = new Vector(1, 0, 0);
   let supportPoint = findSupportPoint(s1, s2, randDir);
   const simplex = [];
-  let dir = ORIGIN.sub(supportPoint);
+  let dir = ORIGIN.sub(supportPoint.minkowskiDIff);
 
   simplex.push(supportPoint);
   let i = 0;
   while (true && i < 1000) {
     supportPoint = findSupportPoint(s1, s2, dir);
-    if (dot(supportPoint, dir) < 0)
+    if (dot(supportPoint.minkowskiDIff, dir) < 0)
       return { simplex: simplex, hasCollided: false };
     simplex.push(supportPoint);
     if (updateSimplex(simplex, dir))

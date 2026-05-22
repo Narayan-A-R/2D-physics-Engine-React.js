@@ -3,8 +3,8 @@ import { Vector } from "../../utils/maths/vector";
 import { dot } from "../../utils/maths/vectorFunc";
 import { RigidBody } from "./RigidBody";
 export class Square extends RigidBody {
-  constructor(sqSvg, pos, vel, side, mass,orientation,inertia,angMom) {
-    super(pos, vel, mass,orientation,inertia,angMom);
+  constructor(sqSvg, pos, vel, side, mass,orientation,inertia,angVel) {
+    super(pos, vel, mass,orientation,inertia,angVel);
     this.side = side;
     this.squareSvg = sqSvg;
     this.squareSvg.setAttribute("x", pos.x);
@@ -17,7 +17,6 @@ export class Square extends RigidBody {
   supportFunc(dir) {
 
     let q1 = quatSandwich(dir,this.orientation.inv());
-    console.log(q1)
     dir = new Vector(q1.x,q1.y,q1.z);
 
     let posX = new Vector(1,0,0);
@@ -50,7 +49,6 @@ export class Square extends RigidBody {
     this.squareSvg.setAttribute("x", this.position.x);
     this.squareSvg.setAttribute("y", this.position.y);
     let theta = 2* Math.atan(this.orientation.z/this.orientation.w)*180/Math.PI;
-    console.log(theta)
     this.squareSvg.setAttribute("transform",`rotate(${theta} ${this.position.x+this.side/2} ${this.position.y+this.side/2})`)
   }
 }

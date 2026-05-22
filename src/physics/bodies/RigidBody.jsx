@@ -1,5 +1,5 @@
 export class RigidBody {
-  constructor(pos, vel, mass,orientation,inertia,angMom) {
+  constructor(pos, vel, mass,orientation,inertia,angVel) {
     this.position = pos;
     this.velocity = vel;
     this.mass = mass;
@@ -11,7 +11,7 @@ export class RigidBody {
     this.orientation = orientation;
     this.inertia = inertia;
     this.invInertia = inertia.inv();
-    this.angMom = angMom;
+    this.angVel = angVel;
   }
 
   supportFunc(dir) {

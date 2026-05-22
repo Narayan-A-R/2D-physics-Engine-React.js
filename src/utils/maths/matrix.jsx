@@ -13,6 +13,23 @@ export class Matrix {
     );
 }
 
+	mult(m){
+		let result = [
+			[0, 0, 0],
+			[0, 0, 0],
+			[0, 0, 0],
+		];
+
+		for (let i = 0; i < 3; i++) {
+			for (let j = 0; j < 3; j++) {
+				for (let k = 0; k < 3; k++) {
+					result[i][j] += this.matrix[i][k] * m.matrix[k][j];
+				}
+			}
+		}
+
+		return new Matrix(result);
+	}
 
   transpose(){
     return new Matrix([
@@ -34,7 +51,7 @@ export class Matrix {
             }
         }
     }
-    if(allZero){return new Matrix([0,0,0],[0,0,0],[0,0,0]);}
+    if(allZero){return new Matrix([[0,0,0],[0,0,0],[0,0,0]]);}
 	var i = 0, ii = 0, j = 0, dim = this.matrix.length, e = 0, t = 0;
 	var I = [], C = [];
 	for (i = 0; i < dim; i += 1) {
