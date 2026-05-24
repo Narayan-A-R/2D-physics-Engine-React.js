@@ -106,6 +106,7 @@ function EPA3D(polytope, s1, s2) {
 }
 
 function EPA2D(polytope, s1, s2) {
+  console.log(polytope)
   while (true) {
     let minIndex = 0;
     let minDistance = Infinity;
@@ -151,7 +152,7 @@ function EPA2D(polytope, s1, s2) {
       
       // console.log(contactPoint)
       const penetrationVec = minNormal.scale(minDistance)
-      // console.log(supportpoint)
+      console.log(penetrationVec)
       return {
         penetrationVec:penetrationVec,
         contactPoint:contactPoint

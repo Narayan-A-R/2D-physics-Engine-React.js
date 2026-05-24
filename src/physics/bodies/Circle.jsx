@@ -10,6 +10,7 @@ export class Circle extends RigidBody {
     this.circleSvg.setAttribute("cy", pos.y);
     this.circleSvg.setAttribute("r", radius);
     this.circleSvg.setAttribute("fill", "var(--primary)");
+    this.shape = "circle";
   }
 
   supportFunc(dir) {

@@ -1,6 +1,7 @@
 import { quatSandwich } from "../../utils/maths/quaternion";
 import { Vector } from "../../utils/maths/vector";
 import { dot } from "../../utils/maths/vectorFunc";
+import { quaternion } from "../../utils/maths/quaternion";
 import { RigidBody } from "./RigidBody";
 export class Square extends RigidBody {
   constructor(sqSvg, pos, vel, side, mass,orientation,inertia,angVel) {
@@ -12,8 +13,28 @@ export class Square extends RigidBody {
     this.squareSvg.setAttribute("height", side);
     this.squareSvg.setAttribute("width", side);
     this.squareSvg.setAttribute("fill", "red");
+    this.shape = "square";
   }
 
+  getCenter(){
+    return this.position.add(new Vector(this.side/2,this.side/2,0));
+  }
+
+  getVertices(){
+    let vertices = [
+      new Vector(this.side/2,this.side/2,0),
+      new Vector(-this.side/2,this.side/2,0),
+      new Vector(-this.side/2,-this.side/2,0),
+      new Vector(this.side/2,-this.side/2,0)
+    ];
+
+    for (let i = 0; i < vertices.length; i++) {
+      const v = vertices[i];
+      let quat_v = quatSandwich(v,this.orientation)
+      vertices[i] = new Vector(quat_v.x,quat_v.y,quat_v.z).add(this.getCenter())
+    }
+    return vertices;
+  }
   supportFunc(dir) {
 
     let q1 = quatSandwich(dir,this.orientation.inv());

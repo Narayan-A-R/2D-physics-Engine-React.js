@@ -14,3 +14,7 @@ export function dot(v1, v2) {
 export function sameDirection(d1, d2) {
   return dot(d1, d2) > 0;
 }
+
+export function lerp(a,b,t){
+  return a.add(b.sub(a).scale(t))
+}
