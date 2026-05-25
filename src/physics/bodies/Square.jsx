@@ -39,14 +39,26 @@ export class Square extends RigidBody {
 
     let q1 = quatSandwich(dir,this.orientation.inv());
     dir = new Vector(q1.x,q1.y,q1.z);
-
+    dir = dir.unitize()
     let posX = new Vector(1,0,0);
     let negX = new Vector(-1,0,0);
     let posY = new Vector(0,1,0);
     let negY = new Vector(0,-1,0);
     let v  = new Vector();
 
-    if(inbetween(posX,dir,posY)){
+    if(dot(dir,posX)===1){
+      v = new Vector(this.side/2,0,0)
+    }
+    else if(dot(dir,posY)===1){
+      v = new Vector(0,this.side/2,0)
+    }
+    else if(dot(dir,negX)===1){
+      v = new Vector(-this.side/2,0,0)
+    }
+    else if(dot(dir,negY)===1){
+      v = new Vector(0,-this.side/2,0)
+    }
+    else if(inbetween(posX,dir,posY)){
       v = new Vector(this.side/2,this.side/2,0);
     }
     else if(inbetween(negX,dir,posY)){

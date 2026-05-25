@@ -106,7 +106,6 @@ function EPA3D(polytope, s1, s2) {
 }
 
 function EPA2D(polytope, s1, s2) {
-  console.log(polytope)
   while (true) {
     let minIndex = 0;
     let minDistance = Infinity;
@@ -133,8 +132,7 @@ function EPA2D(polytope, s1, s2) {
     }
     let supportpoint = findSupportPoint(s1, s2, minNormal);
     let sDistance = dot(minNormal, supportpoint.minkowskiDIff);
-
-    if (Math.abs(sDistance - minDistance) < 0.000000000000001) {
+    if (Math.abs(sDistance - minDistance) < 0.000001) {
       const prevIndex = minIndex === 0 ? polytope.length - 1 : minIndex - 1;
 
       const v0 = polytope[prevIndex];
@@ -152,7 +150,6 @@ function EPA2D(polytope, s1, s2) {
       
       // console.log(contactPoint)
       const penetrationVec = minNormal.scale(minDistance)
-      console.log(penetrationVec)
       return {
         penetrationVec:penetrationVec,
         contactPoint:contactPoint

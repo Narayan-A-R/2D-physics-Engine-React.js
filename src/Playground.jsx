@@ -59,13 +59,13 @@ function findContactPointPolyPoly(s1,s2){
       }
     }
   }
-  console.log(s1)
-  console.log(s2)
-  console.log(contactPoints)
   return contactPoints
 }
 
 function findContactPointPolyCirc(s1,s2){
+  if(s1.shape==="circle"){
+    [s1,s2] = [s2,s1]
+  }
   let vertices = s1.getVertices();
   let minDist = Infinity;
   let closestV = vertices[0];
@@ -79,7 +79,7 @@ function findContactPointPolyCirc(s1,s2){
       closestV = edgePoint
     }
   }
-  return closestV
+  return [closestV]
 }
 
 function findContactPointCircPoly(s1,s2){
@@ -96,12 +96,12 @@ function findContactPointCircPoly(s1,s2){
   }
 
   let centerToV = closesetV.sub(s1.getCenter())
-  return s1.suppportFunc(centerToV)
+  return [s1.supportFunc(centerToV)]
 }
 
 function findContactPointCircCirc(s1,s2){
   let s1Tos2 = s2.getCenter().sub(s1.getCenter())
-  return s1.suppportFunc(s1Tos2)
+  return [s1.supportFunc(s1Tos2)]
 }
 
 function findContactPoint(s1,s2){
@@ -110,7 +110,7 @@ function findContactPoint(s1,s2){
       return findContactPointCircCirc(s1,s2)
     }
     else{
-      return findContactPointCircPoly(s1,s2)
+      return findContactPointPolyCirc(s1,s2)
     }
   }
   else{
@@ -124,8 +124,7 @@ function findContactPoint(s1,s2){
 }
 
 function resolveCollision(epaResult, s1, s2) {
-  let {penetrationVec:p,contactPoint} = epaResult
-  console.log(p)
+  let {penetrationVec:p} = epaResult
   let s1Tos2 = s2.position.sub(s1.position);
   if (!sameDirection(p, s1Tos2)) p = p.scale(-1);
 
@@ -140,22 +139,18 @@ function resolveCollision(epaResult, s1, s2) {
   s1.position = s1.position.sub(p.scale(s1.invMass / totInvMass));
   s2.position = s2.position.add(p.scale(s2.invMass / totInvMass));
 
-  console.log(s1)
-  console.log(s1.position)
-  console.log(s2)
-  console.log(s2.position)
-  console.log(p)
-  let e = 0.5;
-  let j = -(1 + e) * speedAlongNormal;
-  j = j / totInvMass;
 
-  let impulse = normal.scale(j);
-  if (s1.invMass !== 0){
-    s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
-  }
-  if (s2.invMass !== 0){
-    s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-  }
+  let e = 0.8;
+  // let j = -(1 + e) * speedAlongNormal;
+  // j = j / totInvMass;
+
+  // let impulse = normal.scale(j);
+  // if (s1.invMass !== 0){
+  //   s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
+  // }
+  // if (s2.invMass !== 0){
+  //   s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
+  // }
   let I1_body = s1.inertia;
   let R1 = s1.orientation.toRotMat();
   let I1_world = R1.mult(I1_body.mult(R1.transpose()));
@@ -167,27 +162,82 @@ function resolveCollision(epaResult, s1, s2) {
   let I2_world_inv = I2_world.inv();
 
   let contactPoints = findContactPoint(s1,s2)
+  let contactPoint = new Vector(0,0,0)
   for (let i = 0; i < contactPoints.length; i++) {
-    let cp = contactPoints[i];
-    let contactA = cp.sub(s1.getCenter())
-    let contactB = cp.sub(s2.getCenter())
+    contactPoint =contactPoint.add(contactPoints[i])
+  }
+  contactPoint=contactPoint.scale(1/contactPoints.length)
+  let impulses = []
+  let r1_arr = []
+  let r2_arr = []
 
-    let rotMass = dot(
-      I1_world_inv.multVec(cross(cross(contactA,normal),contactA)).add(
-      I2_world_inv.multVec(cross(cross(contactB,normal),contactB)))
+  // console.log(contactPoint)
+  let cp = contactPoint;
+  let r1 = cp.sub(s1.getCenter())
+  let r2 = cp.sub(s2.getCenter())
+
+  let rotMass = dot(
+      I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
+      I2_world_inv.multVec(cross(cross(r2,normal),r2)))
       ,normal)
 
-    let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
-    if (s1.invMass !== 0){
-      s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(contactA,normal)).scale(jr))
-    }
-    if (s2.invMass !== 0){
-      s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(contactB,normal)).scale(jr)) 
-    }
+  let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
+  let impulse = normal.scale(jr)
+  if (s1.invMass !== 0){
+    s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
+    s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
   }
+  if (s2.invMass !== 0){
+    s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
+    s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
+  }
+
+  // for (let i = 0; i < contactPoints.length; i++) {
+  //   let cp = contactPoints[i];
+  //   let r1 = cp.sub(s1.getCenter())
+  //   let r2 = cp.sub(s2.getCenter())
+  //   r1_arr.push(r1)
+  //   r2_arr.push(r2)
+
+  //   let rotMass = dot(
+  //     I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
+  //     I2_world_inv.multVec(cross(cross(r2,normal),r2)))
+  //     ,normal)
+
+  //   let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
+
+  //   jr = jr/ contactPoints.length;
+  //   let impulse = normal.scale(jr)
+  //   impulses.push(impulse)
+    
+  //   // if (s1.invMass !== 0){
+  //   //   s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,normal)).scale(jr))
+  //   // }
+  //   // if (s2.invMass !== 0){
+  //   //   s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,normal)).scale(jr)) 
+  //   // }
+  // }
+
+  // for (let i = 0; i < impulses.length; i++) {
+  //   const impulse = impulses[i];
+  //   const r1 = r1_arr[i];
+  //   const r2 = r2_arr[i];
+  //   console.log(impulse)
+
+  //   if (s1.invMass !== 0){
+  //     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
+  //     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
+  //   }
+  //   if (s2.invMass !== 0){
+
+  //     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
+  //     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
+  //   }
+  // }
 
   s1.update();
   s2.update();
+
 }
 
 function applyForces() {}
@@ -218,7 +268,7 @@ function move(circles, squares) {
     s.orientation = s.orientation.add(omega.mult(s.orientation).scale(0.5*dt)).unitize();
     s.position.x += s.velocity.x * dt;
     s.position.y += s.velocity.y * dt;
-    console.log(s.position)
+
     s.update();
   });
 }
@@ -226,19 +276,25 @@ function move(circles, squares) {
 function createCircles(n) {
   const arr = [];
 
-  // for (let i = 0; i < n; i++) {
-  //   let circleSvg = document.createElementNS(
-  //     "http://www.w3.org/2000/svg",
-  //     "circle",
-  //   );
+  for (let i = 0; i < n; i++) {
+    let circleSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
 
-  //   let radius = getRandom(10, 50);
-  //   let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
-  //   let vel = new Vector(getRandom(-5, 5), getRandom(-5, 5), 0);
-  //   let mass = radius * radius;
-  //   let circle = new Circle(circleSvg, radius, pos, vel, mass);
-  //   arr.push(circle);
-  // }
+    let radius = getRandom(50, 50);
+    let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
+    // let pos = new Vector(600, 600, 0);
+    let vel = new Vector(getRandom(100,100), getRandom(100, 100), 0);
+    // let vel = new Vector(0,-100, 0);
+    let mass = radius * radius;
+    let orientation = new quaternion(1,0,0,0);
+    let mrr = mass * radius* radius;
+    let inertia = new Matrix([[mrr/4,0,0],[0,mrr/4,0],[0,0,mrr/2]])
+    let angVel = new Vector(0,0,0)
+    let circle = new Circle(circleSvg, radius, pos, vel, mass,orientation,inertia,angVel);
+    arr.push(circle);
+  }
 
   // let circleSvg = document.createElementNS(
   //   "http://www.w3.org/2000/svg",
@@ -263,36 +319,33 @@ function createSquares(n) {
 
     let side = getRandom(100, 100);
     let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
-    // let pos = new Vector(625,450, 0);
+    // let pos = new Vector(500,400, 0);
     let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
-    // let vel = new Vector(100, 0, 0);
+    // let vel = new Vector(0, 0, 0);
     let mass = side * side;
     let orientation = new quaternion(1,0,0,0);
     let mss = mass*side*side;
     let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
     let omega = new Vector(0,0,0);
-    // let angMom = inertia.multVec(omega);
+
     let angVel = omega;
     let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
-    // arr.push(square);
+    arr.push(square);
   }
-  let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  let side = getRandom(100, 100);
-  let pos = new Vector(400, 450, 0);
-  let vel = new Vector(300, 0, 0);
-  let mass = side * side;
-  let orientation = new quaternion(1,0,0,0);
-  let mss = mass*side*side;
-  let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
-  let omega = new Vector(0,0,0);
+  // let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  // let side = getRandom(100, 100);
+  // let pos = new Vector(400, 450, 0);
+  // let vel = new Vector(300, 0, 0);
+  // let mass = side * side;
+  // let orientation = new quaternion(1,0,0,0);
+  // let mss = mass*side*side;
+  // let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
   // let omega = new Vector(0,0,0);
-  // let angMom = inertia.multVec(omega);
-  
-  let angVel = omega;
-  // console.log(angMom)
-  // console.log(angMom.magnitude())
-  let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
-  arr.push(square);
+
+  // let angVel = omega;
+
+  // let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
+  // arr.push(square);
   
   return arr;
 }
@@ -333,7 +386,7 @@ function createEnvironment(circlesRef, boundryRef, squareRef) {
 }
 
 function Playground() {
-  const [n, setN] = useState(1);
+  const [n, setN] = useState(10);
 
   const [frameNo, setFrameNo] = useState(0);
   const [t1, setT1] = useState(-1);
@@ -379,7 +432,9 @@ function Playground() {
     move(circles, squares);
 
     setFrameNo((f) => {
-      if (f >= 100) return f;
+      if (f >= 1000){
+        return f;
+      }
       frameId = requestAnimationFrame(animate);
       return f + 1;
     });

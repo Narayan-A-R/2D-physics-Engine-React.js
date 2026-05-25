@@ -2,8 +2,8 @@ import { RigidBody } from "./RigidBody";
 import { Vector } from "../../utils/maths/vector";
 
 export class Circle extends RigidBody {
-  constructor(circleSvg, radius, pos, vel, mass) {
-    super(pos, vel, mass);
+  constructor(circleSvg, radius, pos, vel, mass,orientation,inertia,angVel) {
+    super(pos, vel, mass,orientation,inertia,angVel);
     this.circleSvg = circleSvg;
     this.radius = radius;
     this.circleSvg.setAttribute("cx", pos.x);
@@ -11,6 +11,10 @@ export class Circle extends RigidBody {
     this.circleSvg.setAttribute("r", radius);
     this.circleSvg.setAttribute("fill", "var(--primary)");
     this.shape = "circle";
+  }
+
+  getCenter(){
+    return new Vector(this.position.x,this.position.y,this.position.z)
   }
 
   supportFunc(dir) {
