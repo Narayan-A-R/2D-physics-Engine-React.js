@@ -12,116 +12,8 @@ import { getRandom } from "./utils/maths/utility";
 import { quaternion } from "./utils/maths/quaternion";
 import { Matrix } from "./utils/maths/matrix";
 import { lerp } from "./utils/maths/vectorFunc";
+import { findContactPoint } from "./physics/collisionResolution/findContactPoint";
 
-function findVertexProjectionOnEdge(p,v1,v2){
-    let v1ToP = p.sub(v1);
-    let v1ToV2 = v2.sub(v1);
-
-    let lenSq = dot(v1ToV2, v1ToV2);
-    if (lenSq === 0) return p.sub(v1).magnitude();
-
-    let t = dot(v1ToV2,v1ToP)/lenSq;
-
-    t = Math.max(0, Math.min(1, t));
-    return lerp(v1,v2,t)
-}
-
-function findVertexEdgePerpDist(p,v1,v2){
-  let v1ToP = p.sub(v1);
-  let v1ToV2 = v2.sub(v1);
-
-  let perp = cross(v1ToP,v1ToV2)
-  return perp.magnitude()/v1ToV2.magnitude();
-}
-
-function findContactPointPolyPoly(s1,s2){
-  let vertices1 = s1.getVertices()
-  let vertices2 = s2.getVertices()
-  
-  let minDist = Infinity;
-  let contactPoints = []
-
-  for (let i = 0; i < vertices1.length; i++) {
-    let p = vertices1[i];
-    for (let j = 0; j < vertices2.length; j++) {
-      let v1 = vertices2[j]
-      let v2 = vertices2[(j+1) % vertices2.length];
-      let edgePoint = findVertexProjectionOnEdge(p,v1,v2);
-      let edgePointToP = p.sub(edgePoint)
-      let dist = findVertexEdgePerpDist(p,v1,v2)
-
-      if(dist === minDist){
-        contactPoints.push(edgePoint)
-      }
-      else if(dist < minDist){
-        contactPoints = [edgePoint]
-        minDist = dist
-      }
-    }
-  }
-  return contactPoints
-}
-
-function findContactPointPolyCirc(s1,s2){
-  if(s1.shape==="circle"){
-    [s1,s2] = [s2,s1]
-  }
-  let vertices = s1.getVertices();
-  let minDist = Infinity;
-  let closestV = vertices[0];
-  for (let i = 0; i < vertices.length; i++) {
-    let v1 = vertices[i];
-    let v2 = vertices[ (i+1) % vertices.length]
-    let edgePoint = findVertexProjectionOnEdge(s2.getCenter(),v1,v2)
-    let edgePointToCenter = s2.getCenter().sub(edgePoint)
-    if( edgePointToCenter.magnitude() < minDist){
-      minDist = edgePointToCenter.magnitude()
-      closestV = edgePoint
-    }
-  }
-  return [closestV]
-}
-
-function findContactPointCircPoly(s1,s2){
-  let vertices = s2.getVertices()
-  let minDist = Infinity;
-  let closesetV = vertices[0];
-  for (let i = 0; i < vertices.length; i++) {
-    const v = vertices[i];
-    let centerToV = v.sub(s1.getCenter())
-    if(centerToV.magnitude() < minDist){
-      minDist = centerToV.magnitude()
-      closesetV = v
-    }
-  }
-
-  let centerToV = closesetV.sub(s1.getCenter())
-  return [s1.supportFunc(centerToV)]
-}
-
-function findContactPointCircCirc(s1,s2){
-  let s1Tos2 = s2.getCenter().sub(s1.getCenter())
-  return [s1.supportFunc(s1Tos2)]
-}
-
-function findContactPoint(s1,s2){
-  if(s1.shape === "circle"){
-    if(s2.shape === "circle"){
-      return findContactPointCircCirc(s1,s2)
-    }
-    else{
-      return findContactPointPolyCirc(s1,s2)
-    }
-  }
-  else{
-    if(s2.shape === "circle"){
-      return findContactPointPolyCirc(s1,s2)
-    }
-    else{
-      return findContactPointPolyPoly(s1,s2)
-    }
-  }
-}
 
 function resolveCollision(epaResult, s1, s2) {
   let {penetrationVec:p} = epaResult
@@ -131,26 +23,16 @@ function resolveCollision(epaResult, s1, s2) {
   let totInvMass = s1.invMass + s2.invMass;
   if (totInvMass === 0) return;
 
-  let normal = p.unitize();
-  let relVelocity = s2.velocity.sub(s1.velocity);
-  let speedAlongNormal = dot(relVelocity, normal);
-  if (speedAlongNormal > 0) return;
-
   s1.position = s1.position.sub(p.scale(s1.invMass / totInvMass));
   s2.position = s2.position.add(p.scale(s2.invMass / totInvMass));
 
-
   let e = 0.8;
-  // let j = -(1 + e) * speedAlongNormal;
-  // j = j / totInvMass;
+  let sf = 0.6;
+  let df = 0.4;
 
-  // let impulse = normal.scale(j);
-  // if (s1.invMass !== 0){
-  //   s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
-  // }
-  // if (s2.invMass !== 0){
-  //   s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-  // }
+  let contactPoints = findContactPoint(s1,s2)
+  let contactPoint = new Vector(0,0,0)
+
   let I1_body = s1.inertia;
   let R1 = s1.orientation.toRotMat();
   let I1_world = R1.mult(I1_body.mult(R1.transpose()));
@@ -161,79 +43,66 @@ function resolveCollision(epaResult, s1, s2) {
   let I2_world = R2.mult(I2_body.mult(R2.transpose()));
   let I2_world_inv = I2_world.inv();
 
-  let contactPoints = findContactPoint(s1,s2)
-  let contactPoint = new Vector(0,0,0)
   for (let i = 0; i < contactPoints.length; i++) {
-    contactPoint =contactPoint.add(contactPoints[i])
+    contactPoint = contactPoint.add(contactPoints[i])
   }
   contactPoint=contactPoint.scale(1/contactPoints.length)
-  let impulses = []
-  let r1_arr = []
-  let r2_arr = []
 
-  // console.log(contactPoint)
   let cp = contactPoint;
   let r1 = cp.sub(s1.getCenter())
   let r2 = cp.sub(s2.getCenter())
 
+  let v1 = s1.velocity.add(cross(s1.angVel, r1));
+  let v2 = s2.velocity.add(cross(s2.angVel, r2));
+  
+  let relVelocity = v2.sub(v1);
+
+  let normal = p.unitize();
+  let speedAlongNormal = dot(relVelocity, normal);
+
+  if (speedAlongNormal > 0) return;
+
   let rotMass = dot(
-      I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
-      I2_world_inv.multVec(cross(cross(r2,normal),r2)))
-      ,normal)
+    I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
+    I2_world_inv.multVec(cross(cross(r2,normal),r2)))
+    ,normal)
 
   let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
-  let impulse = normal.scale(jr)
+
+  let tangent = relVelocity.sub(normal.scale(dot(relVelocity,normal)))
+  tangent = tangent.unitize()
+  // if (tangent.magnitude() > 1e-8) tangent.unitize()
+  // else continue;
+
+  let speedAlongTangent = dot(relVelocity,tangent)
+  let rotMassTangent = dot(
+    I1_world_inv.multVec(cross(cross(r1,tangent),r1)).add(
+    I2_world_inv.multVec(cross(cross(r2,tangent),r2)))
+    ,tangent)
+
+  let jt = -speedAlongTangent / (s1.invMass + s2.invMass + rotMassTangent)
+
+
+  let frictionImpulse
+  if (Math.abs(jt) <= jr*sf) {
+    frictionImpulse = tangent.scale(jt)
+  } else {
+    frictionImpulse = tangent.scale(-jr*df * Math.sign(jt))
+  }
+
+  let impulse = normal.scale(jr).add(frictionImpulse)
+  console.log(impulse)
   if (s1.invMass !== 0){
     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
   }
   if (s2.invMass !== 0){
+
     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
+    console.log(s2.velocity)
     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
   }
 
-  // for (let i = 0; i < contactPoints.length; i++) {
-  //   let cp = contactPoints[i];
-  //   let r1 = cp.sub(s1.getCenter())
-  //   let r2 = cp.sub(s2.getCenter())
-  //   r1_arr.push(r1)
-  //   r2_arr.push(r2)
-
-  //   let rotMass = dot(
-  //     I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
-  //     I2_world_inv.multVec(cross(cross(r2,normal),r2)))
-  //     ,normal)
-
-  //   let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
-
-  //   jr = jr/ contactPoints.length;
-  //   let impulse = normal.scale(jr)
-  //   impulses.push(impulse)
-    
-  //   // if (s1.invMass !== 0){
-  //   //   s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,normal)).scale(jr))
-  //   // }
-  //   // if (s2.invMass !== 0){
-  //   //   s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,normal)).scale(jr)) 
-  //   // }
-  // }
-
-  // for (let i = 0; i < impulses.length; i++) {
-  //   const impulse = impulses[i];
-  //   const r1 = r1_arr[i];
-  //   const r2 = r2_arr[i];
-  //   console.log(impulse)
-
-  //   if (s1.invMass !== 0){
-  //     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
-  //     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
-  //   }
-  //   if (s2.invMass !== 0){
-
-  //     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-  //     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
-  //   }
-  // }
 
   s1.update();
   s2.update();
@@ -293,7 +162,7 @@ function createCircles(n) {
     let inertia = new Matrix([[mrr/4,0,0],[0,mrr/4,0],[0,0,mrr/2]])
     let angVel = new Vector(0,0,0)
     let circle = new Circle(circleSvg, radius, pos, vel, mass,orientation,inertia,angVel);
-    arr.push(circle);
+    // arr.push(circle);
   }
 
   // let circleSvg = document.createElementNS(
@@ -317,12 +186,13 @@ function createSquares(n) {
   for (let i = 0; i < n; i++) {
     let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
+    // let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
+    // let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
     let side = getRandom(100, 100);
-    let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
-    // let pos = new Vector(500,400, 0);
-    let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
-    // let vel = new Vector(0, 0, 0);
+    let pos = new Vector(500,400, 0);
+    let vel = new Vector(-100, 0, 0);
     let mass = side * side;
+    // let orientation = new quaternion(Math.cos(Math.PI/8),0,0,Math.sin(Math.PI/8));
     let orientation = new quaternion(1,0,0,0);
     let mss = mass*side*side;
     let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
@@ -332,20 +202,20 @@ function createSquares(n) {
     let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
     arr.push(square);
   }
-  // let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  // let side = getRandom(100, 100);
-  // let pos = new Vector(400, 450, 0);
-  // let vel = new Vector(300, 0, 0);
-  // let mass = side * side;
-  // let orientation = new quaternion(1,0,0,0);
-  // let mss = mass*side*side;
-  // let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
-  // let omega = new Vector(0,0,0);
+  let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  let side = getRandom(100, 100);
+  let pos = new Vector(300, 400, 0);
+  let vel = new Vector(100, 0, 0);
+  let mass = side * side;
+  let orientation = new quaternion(1,0,0,0);
+  let mss = mass*side*side;
+  let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
+  let omega = new Vector(0,0,0);
 
-  // let angVel = omega;
+  let angVel = omega;
 
-  // let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
-  // arr.push(square);
+  let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
+  arr.push(square);
   
   return arr;
 }
@@ -386,7 +256,7 @@ function createEnvironment(circlesRef, boundryRef, squareRef) {
 }
 
 function Playground() {
-  const [n, setN] = useState(10);
+  const [n, setN] = useState(1);
 
   const [frameNo, setFrameNo] = useState(0);
   const [t1, setT1] = useState(-1);
@@ -432,7 +302,7 @@ function Playground() {
     move(circles, squares);
 
     setFrameNo((f) => {
-      if (f >= 1000){
+      if (f >= 4000){
         return f;
       }
       frameId = requestAnimationFrame(animate);
