@@ -18,6 +18,7 @@ import { findContactPoint } from "./physics/collisionResolution/findContactPoint
 function resolveCollision(epaResult, s1, s2) {
   let {penetrationVec:p} = epaResult
   let s1Tos2 = s2.position.sub(s1.position);
+  
   if (!sameDirection(p, s1Tos2)) p = p.scale(-1);
 
   let totInvMass = s1.invMass + s2.invMass;
@@ -62,10 +63,16 @@ function resolveCollision(epaResult, s1, s2) {
 
   if (speedAlongNormal > 0) return;
 
+  console.log(contactPoint)
+  
+
   let rotMass = dot(
     I1_world_inv.multVec(cross(cross(r1,normal),r1)).add(
     I2_world_inv.multVec(cross(cross(r2,normal),r2)))
     ,normal)
+
+  console.log(contactPoint)
+  console.log(rotMass)
 
   let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
 
@@ -91,7 +98,7 @@ function resolveCollision(epaResult, s1, s2) {
   }
 
   let impulse = normal.scale(jr).add(frictionImpulse)
-  console.log(impulse)
+
   if (s1.invMass !== 0){
     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
@@ -99,7 +106,6 @@ function resolveCollision(epaResult, s1, s2) {
   if (s2.invMass !== 0){
 
     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-    console.log(s2.velocity)
     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
   }
 
@@ -138,6 +144,7 @@ function move(circles, squares) {
     s.position.x += s.velocity.x * dt;
     s.position.y += s.velocity.y * dt;
 
+    // console.log(s.position)
     s.update();
   });
 }
@@ -151,10 +158,11 @@ function createCircles(n) {
       "circle",
     );
 
-    let radius = getRandom(50, 50);
     let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
-    // let pos = new Vector(600, 600, 0);
     let vel = new Vector(getRandom(100,100), getRandom(100, 100), 0);
+    let radius = getRandom(10, 50);
+    // let radius = getRandom(50, 50);
+    // let pos = new Vector(600, 600, 0);
     // let vel = new Vector(0,-100, 0);
     let mass = radius * radius;
     let orientation = new quaternion(1,0,0,0);
@@ -162,7 +170,7 @@ function createCircles(n) {
     let inertia = new Matrix([[mrr/4,0,0],[0,mrr/4,0],[0,0,mrr/2]])
     let angVel = new Vector(0,0,0)
     let circle = new Circle(circleSvg, radius, pos, vel, mass,orientation,inertia,angVel);
-    // arr.push(circle);
+    arr.push(circle);
   }
 
   // let circleSvg = document.createElementNS(
@@ -186,11 +194,12 @@ function createSquares(n) {
   for (let i = 0; i < n; i++) {
     let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
-    // let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
-    // let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
-    let side = getRandom(100, 100);
-    let pos = new Vector(500,400, 0);
-    let vel = new Vector(-100, 0, 0);
+    let side = getRandom(10, 100);
+    let pos = new Vector(getRandom(0, 1000), getRandom(0, 1000), 0);
+    let vel = new Vector(getRandom(-1000, 1000), getRandom(-1000, 1000), 0);
+    // let side = getRandom(100, 100);
+    // let pos = new Vector(600,400, 0);
+    // let vel = new Vector(-100, 100, 0);
     let mass = side * side;
     // let orientation = new quaternion(Math.cos(Math.PI/8),0,0,Math.sin(Math.PI/8));
     let orientation = new quaternion(1,0,0,0);
@@ -207,6 +216,7 @@ function createSquares(n) {
   let pos = new Vector(300, 400, 0);
   let vel = new Vector(100, 0, 0);
   let mass = side * side;
+  // let orientation = new quaternion(Math.cos(Math.PI/8),0,0,Math.sin(Math.PI/8));
   let orientation = new quaternion(1,0,0,0);
   let mss = mass*side*side;
   let inertia = new Matrix([[mss/12,0,0],[0,mss/12,0],[0,0,mss/6]]);
@@ -215,7 +225,7 @@ function createSquares(n) {
   let angVel = omega;
 
   let square = new Square(sqsvg, pos, vel, side, mass,orientation,inertia,angVel);
-  arr.push(square);
+  // arr.push(square);
   
   return arr;
 }
@@ -256,7 +266,7 @@ function createEnvironment(circlesRef, boundryRef, squareRef) {
 }
 
 function Playground() {
-  const [n, setN] = useState(1);
+  const [n, setN] = useState(10);
 
   const [frameNo, setFrameNo] = useState(0);
   const [t1, setT1] = useState(-1);
@@ -302,7 +312,9 @@ function Playground() {
     move(circles, squares);
 
     setFrameNo((f) => {
-      if (f >= 4000){
+      if (f >= 3010){
+        console.log([...squares])
+        cancelAnimationFrame(frameId)
         return f;
       }
       frameId = requestAnimationFrame(animate);

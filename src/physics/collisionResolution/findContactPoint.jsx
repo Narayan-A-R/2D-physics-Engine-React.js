@@ -1,3 +1,4 @@
+import { Vector } from "../../utils/maths/vector";
 import { dot,cross } from "../../utils/maths/vectorFunc";
 import { lerp } from "../../utils/maths/vectorFunc";
 
@@ -45,8 +46,7 @@ function findContactPointPolyPoly(s1, s2) {
   let vertices1 = s1.getVertices()
   let vertices2 = s2.getVertices()
 
-  console.log(vertices1)
-  console.log(vertices2)
+
   let minDist = Infinity;
   let edge1 = []
   let edge2 = []
@@ -56,59 +56,57 @@ function findContactPointPolyPoly(s1, s2) {
     let a1 = vertices1[i];
     let a2 = vertices1[(i + 1) % vertices1.length];
 
-    for (let j = 0; j < vertices2.length; j++) {
-      let b1 = vertices2[j];
-      let b2 = vertices2[(j + 1) % vertices2.length];
+    let c = s2.getCenter();
+    let dist = c.sub(a1).magnitude()+c.sub(a2).magnitude()
 
-      let dist = distanceEdgeToEdge(a1, a2, b1, b2);
+    if(dist < minDist){
+      minDist = dist
+      edge1= [a1,a2]
+    }
+  }
 
-      if(dist === minDist){
-          let newSum =
-          distancePointToEdge(b1, a1, a2) +
-          distancePointToEdge(b2, a1, a2);
+  minDist = Infinity
+  for (let i = 0; i < vertices2.length; i++) {
+    let b1 = vertices2[i];
+    let b2 = vertices2[(i + 1) % vertices2.length];
 
-        // how close previously stored edge is to edge1
-        let oldSum =
-          distancePointToEdge(edge2[0], a1, a2) +
-          distancePointToEdge(edge2[1], a1, a2);
+    let c = s1.getCenter();
+    let dist = c.sub(b1).magnitude()+c.sub(b2).magnitude()
 
-        // prefer the edge whose whole segment is closer
-        if (newSum < oldSum) {
-          edge1 = [a1, a2];
-          edge2 = [b1, b2];
-        }
-      }
-      if (dist < minDist) {
-        minDist = dist
-        edge1 = [a1, a2];
-        edge2 = [b1, b2];
-      }
+    if(dist < minDist){
+      minDist = dist
+      edge2= [b1,b2]
     }
   }
 
   let [a1,a2] = edge1;
-  let [b1,b2] = edge2
-  let perpDist1 = findVertexEdgePerpDist(b1,a1,a2)
-  let perpDist2 = findVertexEdgePerpDist(b2,a1,a2)
+  let [b1,b2] = edge2;
 
-  console.log(edge1)
-  console.log(edge2)
 
-  console.log(perpDist1)
-  console.log(perpDist2)
-  if(perpDist1 !== perpDist2){
-    if(perpDist1<perpDist2){
+  if(cross(a1.sub(a2),b1.sub(b2)).magnitude()!==0){
+    minDist = Infinity;
+    if(distancePointToEdge(a1,b2,b2)<minDist){
+      minDist = distancePointToEdge(a1,b2,b2);
+      contactPoints = [a1]
+    }
+    if(distancePointToEdge(a2,b1,b2)< minDist){
+      minDist = distancePointToEdge(a2,b1,b2)
+      contactPoints = [a2]
+    }
+    if(distancePointToEdge(b1,a1,a2)< minDist){
+      minDist = distancePointToEdge(b1,a1,a2)
       contactPoints = [b1]
     }
-    else{
+    if(distancePointToEdge(b2,a1,a2)< minDist){
+      minDist = distancePointToEdge(b2,a1,a2)
       contactPoints = [b2]
     }
-    console.log("helllo")
   }
   else{
     let lenb1b2 = b2.sub(b1).magnitude();
     let lena1a2 = a2.sub(a1).magnitude();
     
+
     if(lenb1b2 < lena1a2){
       
       let projb1 = findVertexProjectionOnEdge(b1,a1,a2)
@@ -134,8 +132,6 @@ function findContactPointPolyPoly(s1, s2) {
         contactPoints.push(proja1)
       }
 
-      console.log(contactPoints)
-      console.log(contactPoints)
       if(contactPoints.length>1){
         contactPoints = [contactPoints[0].add(contactPoints[1]).scale(0.5)]
       }
@@ -188,7 +184,8 @@ function findContactPointCircCirc(s1,s2){
 }
 
 export function findContactPoint(s1,s2){
-  console.log(s1,s2)
+  console.log(s1)
+  console.log(s2)
   if(s1.shape === "circle"){
     if(s2.shape === "circle"){
       return findContactPointCircCirc(s1,s2)

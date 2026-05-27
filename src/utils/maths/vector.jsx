@@ -47,4 +47,8 @@ export class Vector {
             this.y === v.y &&
             this.z === v.z
   }
+
+  clone(){
+    return new Vector(this.x,this.y,this.z)
+  }
 }
