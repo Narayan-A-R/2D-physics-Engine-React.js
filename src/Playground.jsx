@@ -200,8 +200,7 @@ function Playground() {
     return ()=> cancelAnimationFrame(frameIdRef.current)
   },[isRunning])
 
-
-  function animate() {
+  function runWorld(){
     const circles = circlesRef.current;
     const squares = squaresRef.current;
     const environment = environmentRef.current;
@@ -209,7 +208,10 @@ function Playground() {
     handleCollision(environment);
     applyForces(circles,squares);
     move(circles, squares);
+  }
 
+  function animate() {
+    runWorld();
     setFrameNo((f) => {
       if (f >= 3000){
         return f;
@@ -220,6 +222,7 @@ function Playground() {
   }
 
   const nextFrame = () => {
+    runWorld();
     setFrameNo((f) => {
       if (f >= 3000) return f;
       return f + 1;
