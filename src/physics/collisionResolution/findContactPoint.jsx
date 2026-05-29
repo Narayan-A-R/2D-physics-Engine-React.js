@@ -111,7 +111,6 @@ function findContactPointPolyPoly(s1, s2) {
       
       let projb1 = findVertexProjectionOnEdge(b1,a1,a2)
       let projb2 = findVertexProjectionOnEdge(b2,a1,a2)
-      console.log(projb1)
       if(projb1.equalTo(a1) || projb2.equalTo(a1)){
         contactPoints = [findVertexProjectionOnEdge(a1,b1,b2)]
       }
@@ -137,7 +136,6 @@ function findContactPointPolyPoly(s1, s2) {
       }
     }
   }
-  console.log(contactPoints)
   return contactPoints;
 }
 
@@ -184,8 +182,7 @@ function findContactPointCircCirc(s1,s2){
 }
 
 export function findContactPoint(s1,s2){
-  console.log(s1)
-  console.log(s2)
+
   if(s1.shape === "circle"){
     if(s2.shape === "circle"){
       return findContactPointCircCirc(s1,s2)
