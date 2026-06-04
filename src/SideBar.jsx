@@ -4,16 +4,14 @@ import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
 import "./Sidebar.css";
 
-function Sidebar() {
-  const [count, setCount] = useState(0);
-
+function Sidebar({sceneInd,setSceneInd}) {
   return (
     <div className="vertRect">
-      <div className="roundSquare">test1</div>
-      <div className="roundSquare">test2</div>
-      <div className="roundSquare">test3</div>
-      <div className="roundSquare">test4</div>
-      <div className="roundSquare">test5</div>
+      <div className={`roundSquare ${sceneInd===0?"selected":""}`} onClick={() => setSceneInd(0)}>DVD</div>
+      <div className={`roundSquare ${sceneInd===1?"selected":""}`} onClick={() => setSceneInd(1)}>Newtons Cradle</div>
+      <div className={`roundSquare ${sceneInd===2?"selected":""}`} onClick={() => setSceneInd(2)}>Friction</div>
+      <div className={`roundSquare ${sceneInd===3?"selected":""}`} onClick={() => setSceneInd(3)}>Chaos</div>
+      <div className={`roundSquare ${sceneInd===4?"selected":""}`} onClick={() => setSceneInd(4)}>Gravity</div>
     </div>
   );
 }

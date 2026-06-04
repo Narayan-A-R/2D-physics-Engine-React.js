@@ -27,3 +27,8 @@
 .roundSquare:hover {
   background-color: var(--primary-washed);
 }
+
+.roundSquare.selected {
+  background-color: var(--primary-washed);
+  color: white;
+}

@@ -4,15 +4,15 @@ import { dot } from "../../utils/maths/vectorFunc";
 import { quaternion } from "../../utils/maths/quaternion";
 import { RigidBody } from "./RigidBody";
 export class Square extends RigidBody {
-  constructor(sqSvg, pos, vel, side, mass,orientation,inertia,angVel) {
+  constructor(svg, pos, vel, side, mass,orientation,inertia,angVel) {
     super(pos, vel, mass,orientation,inertia,angVel);
     this.side = side;
-    this.squareSvg = sqSvg;
-    this.squareSvg.setAttribute("x", pos.x);
-    this.squareSvg.setAttribute("y", pos.y);
-    this.squareSvg.setAttribute("height", side);
-    this.squareSvg.setAttribute("width", side);
-    this.squareSvg.setAttribute("fill", "red");
+    this.svg = svg;
+    this.svg.setAttribute("x", pos.x);
+    this.svg.setAttribute("y", pos.y);
+    this.svg.setAttribute("height", side);
+    this.svg.setAttribute("width", side);
+    this.svg.setAttribute("fill", "red");
     this.shape = "square";
   }
 
@@ -79,10 +79,10 @@ export class Square extends RigidBody {
   }
 
   update() {
-    this.squareSvg.setAttribute("x", this.position.x);
-    this.squareSvg.setAttribute("y", this.position.y);
+    this.svg.setAttribute("x", this.position.x);
+    this.svg.setAttribute("y", this.position.y);
     let theta = 2* Math.atan(this.orientation.z/this.orientation.w)*180/Math.PI;
-    this.squareSvg.setAttribute("transform",`rotate(${theta} ${this.position.x+this.side/2} ${this.position.y+this.side/2})`)
+    this.svg.setAttribute("transform",`rotate(${theta} ${this.position.x+this.side/2} ${this.position.y+this.side/2})`)
   }
 }
 

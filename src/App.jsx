@@ -7,14 +7,21 @@ import "./App.css";
 import Playground from "./Playground";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [sceneInd, setSceneInd] = useState(0)
 
   return (
     <div className="appContainer">
-      <Sidebar />
-      <Playground />
+      <Sidebar
+      sceneInd={sceneInd}
+      setSceneInd={setSceneInd}
+      />
+
+      <Playground 
+      key={sceneInd}
+      sceneInd={sceneInd}
+      />
     </div>
-  );
+  )
 }
 
 export default App;
