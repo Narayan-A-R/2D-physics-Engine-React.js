@@ -29,6 +29,6 @@
 }
 
 .roundSquare.selected {
-  background-color: var(--primary-washed);
+  background-color: var(--accent);
   color: white;
 }

@@ -60,7 +60,6 @@ function resolveCollision(epaResult, s1, s2) {
     I2_world_inv.multVec(cross(cross(r2,normal),r2)))
     ,normal)
 
-  console.log(e)
   let jr = (-(1 + e) * speedAlongNormal)/(s1.invMass+s2.invMass+rotMass)
 
   let tangent = relVelocity.sub(normal.scale(dot(relVelocity,normal)))
@@ -149,10 +148,9 @@ function Playground({sceneInd}) {
   g = scene.g
   let boundry = scene.boundry
   let objects = scene.objects
-  console.log(scene.boundry[0])
-  
+
   const [frameNo, setFrameNo] = useState(0);
-  const [isRunning, setIsRunning] = useState(true)
+  const [isRunning, setIsRunning] = useState(false)
 
   const objectsRef = useRef(objects);
   const boundryRef = useRef(boundry);

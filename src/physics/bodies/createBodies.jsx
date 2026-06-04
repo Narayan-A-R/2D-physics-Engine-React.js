@@ -42,9 +42,9 @@ export function createRandomCircles(n){
       "circle",
     );
 
-    let pos = new Vector(getRandom(-0, 1000), getRandom(0, 1000), 0);
+    let pos = new Vector(getRandom(100, 900), getRandom(10, 900), 0);
     let vel = new Vector(getRandom(-100,100), getRandom(-100, 100), 0);
-    let radius = getRandom(10, 50);
+    let radius = getRandom(30, 50);
     let mass = radius * radius;
     let orientation = new quaternion(1,0,0,0);
     let mrr = mass * radius* radius;
@@ -61,8 +61,8 @@ export function createRandomSquares(n){
   for (let i = 0; i < n; i++) {
     let sqsvg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
-    let side = getRandom(10, 100);
-    let pos = new Vector(getRandom(10, 900), getRandom(10, 900), 0);
+    let side = getRandom(80, 100);
+    let pos = new Vector(getRandom(100, 900), getRandom(100, 900), 0);
     let vel = new Vector(getRandom(-500, 500), getRandom(-500, 500), 0);
     let mass = side * side;
     let orientation = new quaternion(1,0,0,0);
