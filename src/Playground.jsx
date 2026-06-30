@@ -7,7 +7,7 @@ import { findSupportPoint } from "./physics/support";
 import { EPA } from "./physics/collisionResolution/EPA";
 import { quaternion } from "./utils/maths/quaternion";
 import { findContactPoint } from "./physics/collisionResolution/findContactPoint";
-import { dt } from "./utils/maths/constants";
+import { deltaTime,subDeltaTiterations,EPS } from "./utils/maths/constants";
 import { createRandomCircles,createRandomSquares,createBoundry } from "./physics/bodies/CreateBodies";
 import scenes from "./physics/scenes";
 
@@ -34,7 +34,7 @@ function resolveCollision(epaResult, s1, s2) {
     contactPoint = contactPoint.add(contactPoints[i])
   }
   contactPoint=contactPoint.scale(1/contactPoints.length)
-
+  // console.log(contactPoint)
   let cp = contactPoint;
   let r1 = cp.sub(s1.getCenter())
   let r2 = cp.sub(s2.getCenter())
@@ -89,14 +89,21 @@ function resolveCollision(epaResult, s1, s2) {
   let impulse = normal.scale(jr).add(frictionImpulse)
 
   if (s1.invMass !== 0){
+    // console.log(s1.velocity)
     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
+    if(s1.velocity.magnitude() <= 10) s1.velocity = new Vector(0,0,0)
+    // console.log(s1.velocity)
     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
+    if(s1.angVel.magnitude() <= 0.01) s1.angVel =  new Vector(0,0,0)
   }
   if (s2.invMass !== 0){
-    // console.log(s2.velocity)
+    // console.log(s2.shape)
+    console.log(s2.velocity)
     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-    // console.log(s2.velocity)
+    if(s2.velocity.magnitude() <= 10) s2.velocity = new Vector(0,0,0)
+    console.log(s2.velocity)
     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
+    if(s2.angVel.magnitude() <= 0.01) s2.angVel =  new Vector(0,0,0)
   }
 
 
@@ -117,6 +124,7 @@ function handleCollision(environment) {
 }
 
 function applyForces(environment) {
+  let dt = deltaTime/subDeltaTiterations;
   environment.map((env) => {
     if(env.invMass===0) return;
     env.velocity = env.velocity.add(g.scale(dt))
@@ -124,6 +132,7 @@ function applyForces(environment) {
 }
 
 function move(environment) {
+  let dt = deltaTime/subDeltaTiterations;
   environment.map((env) => {
     if(env.invMass===0) return;
     let omega = new quaternion(0,env.angVel.x,env.angVel.y,env.angVel.z)
@@ -185,10 +194,11 @@ function Playground({sceneInd}) {
 
   function runWorld(){
     const environment = environmentRef.current;
-
-    handleCollision(environment);
-    applyForces(environment);
-    move(environment);
+    for (let it = 0; it < subDeltaTiterations; it++) {
+      handleCollision(environment);
+      applyForces(environment);
+      move(environment);  
+    }
   }
 
   function animate() {

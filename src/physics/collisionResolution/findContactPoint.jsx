@@ -82,7 +82,10 @@ function findContactPointPolyPoly(s1, s2) {
   let [a1,a2] = edge1;
   let [b1,b2] = edge2;
 
-
+  // console.log(a1)
+  // console.log(a2)
+  // console.log(b1)
+  // console.log(b2)
   if(cross(a1.sub(a2),b1.sub(b2)).magnitude()!==0){
     minDist = Infinity;
     if(distancePointToEdge(a1,b2,b2)<minDist){

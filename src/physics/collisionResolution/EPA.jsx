@@ -1,6 +1,7 @@
 import { Vector } from "../../utils/maths/vector";
 import { dot, sameDirection, cross } from "../../utils/maths/vectorFunc";
 import { findSupportPoint } from "../support";
+import { EPS } from "../../utils/maths/constants";
 
 function addIfUniqueEdge(edges, faces, a, b) {
   const reverse = edges.map((e, i) => {
@@ -54,7 +55,7 @@ function EPA3D(polytope, s1, s2) {
 
     const sDistance = dot(minNormal, supportPoint);
 
-    if (Math.abs(sDistance - minDistance) > 0.001) {
+    if (Math.abs(sDistance - minDistance) > EPS) {
       minDistance = Infinity;
       const uniqueEdges = [];
       for (let i = 0; i < normals.length; i++) {
@@ -132,7 +133,7 @@ function EPA2D(polytope, s1, s2) {
     }
     let supportpoint = findSupportPoint(s1, s2, minNormal);
     let sDistance = dot(minNormal, supportpoint.minkowskiDIff);
-    if (Math.abs(sDistance - minDistance) < 0.000001) {
+    if (Math.abs(sDistance - minDistance) < EPS) {
       const prevIndex = minIndex === 0 ? polytope.length - 1 : minIndex - 1;
 
       const v0 = polytope[prevIndex];
@@ -149,7 +150,7 @@ function EPA2D(polytope, s1, s2) {
       const contactPoint = contactA.add(contactB).scale(0.5);
       
       // console.log(contactPoint)
-      const penetrationVec = minNormal.scale(minDistance)
+      const penetrationVec = minNormal.scale(minDistance+EPS)
       return {
         penetrationVec:penetrationVec,
         contactPoint:contactPoint
