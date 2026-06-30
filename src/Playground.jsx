@@ -91,7 +91,7 @@ function resolveCollision(epaResult, s1, s2) {
   if (s1.invMass !== 0){
     // console.log(s1.velocity)
     s1.velocity = s1.velocity.sub(impulse.scale(s1.invMass));
-    if(s1.velocity.magnitude() <= 10) s1.velocity = new Vector(0,0,0)
+    if(s1.velocity.magnitude() <= 0.01) s1.velocity = new Vector(0,0,0)
     // console.log(s1.velocity)
     s1.angVel = s1.angVel.sub(I1_world_inv.multVec(cross(r1,impulse)))
     if(s1.angVel.magnitude() <= 0.01) s1.angVel =  new Vector(0,0,0)
@@ -100,7 +100,7 @@ function resolveCollision(epaResult, s1, s2) {
     // console.log(s2.shape)
     console.log(s2.velocity)
     s2.velocity = s2.velocity.add(impulse.scale(s2.invMass));
-    if(s2.velocity.magnitude() <= 10) s2.velocity = new Vector(0,0,0)
+    if(s2.velocity.magnitude() <= 0.01) s2.velocity = new Vector(0,0,0)
     console.log(s2.velocity)
     s2.angVel = s2.angVel.add(I2_world_inv.multVec(cross(r2,impulse)))
     if(s2.angVel.magnitude() <= 0.01) s2.angVel =  new Vector(0,0,0)
@@ -195,6 +195,8 @@ function Playground({sceneInd}) {
   function runWorld(){
     const environment = environmentRef.current;
     for (let it = 0; it < subDeltaTiterations; it++) {
+      handleCollision(environment);
+      handleCollision(environment);
       handleCollision(environment);
       applyForces(environment);
       move(environment);  
